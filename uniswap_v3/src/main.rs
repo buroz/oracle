@@ -72,11 +72,11 @@ async fn main() -> Result<()> {
     let slot0 = pool_contract.slot0().call().await?;
     let sqrt_price_x96 = slot0.sqrtPriceX96;
 
-    let usdc_per_weth = calculate_price(sqrt_price_x96, token0_decimals, token1_decimals);
-    println!("1 {} = {:.6} {}", token0_symbol, usdc_per_weth, token1_symbol);
+    let token0_per_token1 = calculate_price(sqrt_price_x96, token0_decimals, token1_decimals);
+    println!("1 {} = {:.10} {}", token0_symbol, token0_per_token1, token1_symbol);
 
-    let weth_per_usdc = 1.0 / usdc_per_weth;
-    println!("1 {} = {:.6} {}", token1_symbol, weth_per_usdc, token0_symbol);
+    let token1_per_token0 = 1.0 / token0_per_token1;
+    println!("1 {} = {:.10} {}", token1_symbol, token1_per_token0, token0_symbol);
 
     Ok(())
 }
