@@ -1,0 +1,12 @@
+[package]
+name = "uniswap_v3"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+alloy = { version = "1.0.1", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"
+chrono = "0.4.41"
+questdb-rs = { version = "5.0.0", features = ["chrono_timestamp"] }
+anyhow = "1.0"
