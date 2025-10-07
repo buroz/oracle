@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Uniswap V2 - TradingView Chart</title>
+  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #131722;
+      color: #d1d4dc;
+      overflow-x: hidden;
+    }
+
+    .header {
+      background: #1e222d;
+      padding: 15px 30px;
+      border-bottom: 1px solid #2a2e39;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .logo-section h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: #2962ff;
+    }
+
+    .pair-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .pair-name {
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .price-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .current-price {
+      font-size: 20px;
+      font-weight: 600;
+      color: #26a69a;
+    }
+
+    .price-change {
+      font-size: 14px;
+      margin-top: 2px;
+    }
+
+    .price-change.positive {
+      color: #26a69a;
+    }
+
+    .price-change.negative {
+      color: #ef5350;
+    }
+
+    .controls {
+      background: #1e222d;
+      padding: 10px 30px;
+      border-bottom: 1px solid #2a2e39;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-group label {
+      font-size: 13px;
+      color: #787b86;
+    }
+
+    select,
+    button {
+      background: #2a2e39;
+      color: #d1d4dc;
+      border: 1px solid #434651;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button {
+      font-weight: 500;
+    }
+
+    select:hover,
+    button:hover {
+      background: #363a45;
+      border-color: #5d606b;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .refresh-btn {
+      background: #2962ff;
+      border-color: #2962ff;
+      color: white;
+    }
+
+    .refresh-btn:hover {
+      background: #1e53e5;
+      border-color: #1e53e5;
+    }
+
+    .stats-panel {
+      background: #1e222d;
+      padding: 20px 30px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 20px;
+      border-bottom: 1px solid #2a2e39;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #787b86;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #d1d4dc;
+    }
+
+    .chart-container {
+      padding: 20px 30px;
+      height: calc(100vh - 250px);
+      min-height: 500px;
+    }
+
+    #chart {
+      width: 100%;
+      height: 100%;
+    }
+
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 400px;
+      font-size: 16px;
+      color: #787b86;
+    }
+
+    .loading::after {
+      content: '...';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+
+    @keyframes dots {
+
+      0%,
+      20% {
+        content: '.';
+      }
+
+      40% {
+        content: '..';
+      }
+
+      60%,
+      100% {
+        content: '...';
+      }
+    }
+
+    .error {
+      background: #ef5350;
+      color: white;
+      padding: 20px;
+      margin: 30px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .legend {
+      background: #1e222d;
+      border: 1px solid #2a2e39;
+      border-radius: 4px;
+      padding: 10px;
+      position: absolute;
+      top: 30px;
+      right: 40px;
+      font-size: 12px;
+      min-width: 150px;
+      z-index: 10;
+    }
+
+    .legend-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 3px 0;
+    }
+
+    .legend-label {
+      color: #787b86;
+    }
+
+    .legend-value {
+      color: #d1d4dc;
+      font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        padding: 15px;
+      }
+
+      .controls {
+        padding: 10px 15px;
+      }
+
+      .chart-container {
+        padding: 15px;
+      }
+
+      .stats-panel {
+        padding: 15px;
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <div class="logo-section">
+      <h1>📈 TradingView</h1>
+      <div class="pair-info">
+        <span class="pair-name">DAI/WETH</span>
+        <div class="price-info">
+          <div class="current-price" id="currentPrice">-</div>
+          <div class="price-change" id="priceChange">-</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>Chart Type:</label>
+      <select id="chartType">
+        <option value="candlestick">Candlestick</option>
+        <option value="line">Line</option>
+        <option value="area">Area</option>
+        <option value="baseline">Baseline</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Volume:</label>
+      <select id="volumeToggle">
+        <option value="show">Show</option>
+        <option value="hide">Hide</option>
+      </select>
+    </div>
+
+    <button class="refresh-btn" onclick="loadData()">🔄 Refresh</button>
+    <button onclick="exportImage()">📸 Screenshot</button>
+    <button onclick="exportCSV()">📥 Export CSV</button>
+  </div>
+
+  <div class="stats-panel" id="statsPanel">
+    <div class="stat-item">
+      <div class="stat-label">Open</div>
+      <div class="stat-value" id="statOpen">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">High</div>
+      <div class="stat-value" id="statHigh">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Low</div>
+      <div class="stat-value" id="statLow">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Close</div>
+      <div class="stat-value" id="statClose">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Volume</div>
+      <div class="stat-value" id="statVolume">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Candles</div>
+      <div class="stat-value" id="statCount">-</div>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <div id="chart"></div>
+  </div>
+
+  <script>
+    let chart;
+    let candlestickSeries;
+    let volumeSeries;
+    let candlestickData = [];
+
+    // Initialize chart
+    function initChart() {
+      const container = document.getElementById('chart');
+
+      chart = LightweightCharts.createChart(container, {
+        layout: {
+          background: { color: '#131722' },
+          textColor: '#d1d4dc',
+        },
+        grid: {
+          vertLines: {
+            color: '#1e222d',
+            style: 1,
+          },
+          horzLines: {
+            color: '#363c4e',
+            style: 0,
+          },
+        },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Normal,
+          vertLine: {
+            color: '#758696',
+            width: 1,
+            style: 3,
+            labelBackgroundColor: '#2962ff',
+          },
+          horzLine: {
+            color: '#758696',
+            width: 1,
+            style: 3,
+            labelBackgroundColor: '#2962ff',
+          },
+        },
+        rightPriceScale: {
+          borderColor: '#2a2e39',
+          scaleMargins: {
+            top: 0.1,
+            bottom: 0.2,
+          },
+        },
+        leftPriceScale: {
+          visible: false,
+        },
+        timeScale: {
+          borderColor: '#2a2e39',
+          timeVisible: true,
+          secondsVisible: false,
+          rightOffset: 12,
+          barSpacing: 10,
+          minBarSpacing: 5,
+        },
+      });
+
+      // Handle resize
+      new ResizeObserver(entries => {
+        if (entries.length === 0 || entries[0].target !== container) {
+          return;
+        }
+        const newRect = entries[0].contentRect;
+        chart.applyOptions({ width: newRect.width, height: newRect.height });
+      }).observe(container);
+    }
+
+    // Load data from JSON
+    async function loadData() {
+      try {
+        const response = await fetch('candlestick_data.json');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        candlestickData = await response.json();
+
+        updateChart();
+        updateStats();
+
+      } catch (error) {
+        console.error('Error loading data:', error);
+        document.getElementById('chart').innerHTML =
+          `<div class="error">
+                        <h3>❌ Veri Yükleme Hatası</h3>
+                        <p>${error.message}</p>
+                        <p>candlestick_data.json dosyasını kontrol edin.</p>
+                    </div>`;
+      }
+    }
+
+    // Update chart with data
+    function updateChart() {
+      const chartType = document.getElementById('chartType').value;
+      const showVolume = document.getElementById('volumeToggle').value === 'show';
+
+      // Clear existing series
+      if (candlestickSeries) {
+        chart.removeSeries(candlestickSeries);
+      }
+      if (volumeSeries) {
+        chart.removeSeries(volumeSeries);
+      }
+
+      // Prepare data
+      const chartData = candlestickData.map(d => ({
+        time: Math.floor(d.timestamp / 1000),
+        open: parseFloat(d.open),
+        high: parseFloat(d.high),
+        low: parseFloat(d.low),
+        close: parseFloat(d.close)
+      }));
+
+      const volumeData = candlestickData.map(d => ({
+        time: Math.floor(d.timestamp / 1000),
+        value: parseFloat(d.volume),
+        color: parseFloat(d.close) >= parseFloat(d.open) ?
+          'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+      }));
+
+      // Create appropriate series based on chart type
+      if (chartType === 'candlestick') {
+        candlestickSeries = chart.addCandlestickSeries({
+          upColor: '#26a69a',
+          downColor: '#ef5350',
+          borderVisible: false,
+          wickUpColor: '#26a69a',
+          wickDownColor: '#ef5350',
+        });
+        candlestickSeries.setData(chartData);
+      } else if (chartType === 'line') {
+        const lineData = chartData.map(d => ({
+          time: d.time,
+          value: d.close
+        }));
+        candlestickSeries = chart.addLineSeries({
+          color: '#2962ff',
+          lineWidth: 2,
+        });
+        candlestickSeries.setData(lineData);
+      } else if (chartType === 'area') {
+        const areaData = chartData.map(d => ({
+          time: d.time,
+          value: d.close
+        }));
+        candlestickSeries = chart.addAreaSeries({
+          topColor: 'rgba(41, 98, 255, 0.4)',
+          bottomColor: 'rgba(41, 98, 255, 0.0)',
+          lineColor: '#2962ff',
+          lineWidth: 2,
+        });
+        candlestickSeries.setData(areaData);
+      } else if (chartType === 'baseline') {
+        const baselineData = chartData.map(d => ({
+          time: d.time,
+          value: d.close
+        }));
+        candlestickSeries = chart.addBaselineSeries({
+          topLineColor: '#26a69a',
+          bottomLineColor: '#ef5350',
+          topFillColor1: 'rgba(38, 166, 154, 0.28)',
+          topFillColor2: 'rgba(38, 166, 154, 0.05)',
+          bottomFillColor1: 'rgba(239, 83, 80, 0.05)',
+          bottomFillColor2: 'rgba(239, 83, 80, 0.28)',
+        });
+        candlestickSeries.setData(baselineData);
+      }
+
+      // Add volume series if enabled
+      if (showVolume) {
+        volumeSeries = chart.addHistogramSeries({
+          priceFormat: {
+            type: 'volume',
+          },
+          priceScaleId: '',
+          color: '#26a69a',
+        });
+        volumeSeries.priceScale().applyOptions({
+          scaleMargins: {
+            top: 0.7,
+            bottom: 0,
+          },
+        });
+        volumeSeries.setData(volumeData);
+      }
+
+      // Fit content and adjust visible range
+      chart.timeScale().fitContent();
+
+      // Set visible range to show last portion of data more clearly
+      if (candlestickData.length > 50) {
+        const lastIndex = candlestickData.length - 1;
+        const firstVisibleIndex = Math.max(0, lastIndex - 50);
+        chart.timeScale().setVisibleRange({
+          from: Math.floor(candlestickData[firstVisibleIndex].timestamp / 1000),
+          to: Math.floor(candlestickData[lastIndex].timestamp / 1000),
+        });
+      }
+
+      // Subscribe to crosshair move for tooltip
+      chart.subscribeCrosshairMove(handleCrosshairMove);
+    }
+
+    // Handle crosshair move for live price display
+    function handleCrosshairMove(param) {
+      if (!param.time || !param.seriesData.size) {
+        return;
+      }
+
+      const data = param.seriesData.get(candlestickSeries);
+      if (data) {
+        if (data.open !== undefined) {
+          // Candlestick data
+          updateStatsPanel(data);
+        } else if (data.value !== undefined) {
+          // Line/Area/Baseline data
+          updateStatsPanel({
+            open: data.value,
+            high: data.value,
+            low: data.value,
+            close: data.value
+          });
+        }
+      }
+    }
+
+    // Update statistics
+    function updateStats() {
+      if (candlestickData.length === 0) return;
+
+      const latestData = candlestickData[candlestickData.length - 1];
+      const firstData = candlestickData[0];
+
+      const currentPrice = parseFloat(latestData.close);
+      const openPrice = parseFloat(firstData.open);
+      const priceChange = ((currentPrice - openPrice) / openPrice) * 100;
+
+      document.getElementById('currentPrice').textContent = currentPrice.toFixed(8);
+      const priceChangeEl = document.getElementById('priceChange');
+      priceChangeEl.textContent = `${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}%`;
+      priceChangeEl.className = 'price-change ' + (priceChange >= 0 ? 'positive' : 'negative');
+
+      document.getElementById('statCount').textContent = candlestickData.length;
+
+      updateStatsPanel({
+        open: parseFloat(latestData.open),
+        high: parseFloat(latestData.high),
+        low: parseFloat(latestData.low),
+        close: parseFloat(latestData.close)
+      });
+
+      const totalVolume = candlestickData.reduce((sum, d) =>
+        sum + parseFloat(d.volume), 0);
+      document.getElementById('statVolume').textContent = totalVolume.toFixed(2);
+    }
+
+    // Update stats panel
+    function updateStatsPanel(data) {
+      document.getElementById('statOpen').textContent = data.open.toFixed(8);
+      document.getElementById('statHigh').textContent = data.high.toFixed(8);
+      document.getElementById('statLow').textContent = data.low.toFixed(8);
+      document.getElementById('statClose').textContent = data.close.toFixed(8);
+    }
+
+    // Export as image
+    function exportImage() {
+      return;
+    }
+
+    // Export as CSV
+    function exportCSV() {
+      if (candlestickData.length === 0) return;
+
+      const headers = ['Timestamp', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume'];
+      const csvContent = [
+        headers.join(','),
+        ...candlestickData.map(d => [
+          d.timestamp,
+          new Date(d.timestamp).toISOString(),
+          d.open,
+          d.high,
+          d.low,
+          d.close,
+          d.volume
+        ].join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'uniswap_v2_candlestick_data.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+
+    // Event listeners
+    document.getElementById('chartType').addEventListener('change', updateChart);
+    document.getElementById('volumeToggle').addEventListener('change', updateChart);
+
+    // Initialize on load
+    window.addEventListener('load', () => {
+      initChart();
+      loadData();
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      if (chart) {
+        const container = document.getElementById('chart');
+        chart.applyOptions({
+          width: container.clientWidth,
+          height: container.clientHeight
+        });
+      }
+    });
+  </script>
+</body>
+
+</html>
