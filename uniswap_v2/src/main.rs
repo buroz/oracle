@@ -9,9 +9,9 @@ use anyhow::Result;
 use chrono::DateTime;
 use futures_util::StreamExt;
 
-const RPC_URL: &str = "wss://mainnet.gateway.tenderly.co";
+const RPC_URL: &str = "wss://arbitrum-one-rpc.publicnode.com";
 
-const ADDRESS: Address = address!("0xeae14c74ebe152da6dc58adfe383afcc342c78fa");
+const ADDRESS: Address = address!("0xf64dfe17c8b87f012fcf50fbda1d62bfa148366a");
 
 sol! {
     #[sol(rpc)]
@@ -61,6 +61,9 @@ async fn main() -> Result<()> {
     let token0_symbol = token0_contract.symbol().call().await?;
     let token1_symbol = token1_contract.symbol().call().await?;
 
+    println!("Token0: {} ({})", token0_symbol, token0_addr);
+    println!("Token1: {} ({})", token1_symbol, token1_addr);
+
     let reserves = pair_contract.getReserves().call().await?;
     let reserve0 = reserves.reserve0;
     let reserve1 = reserves.reserve1;
@@ -109,6 +112,7 @@ async fn main() -> Result<()> {
 
     let sub = provider.subscribe_logs(&filter).await?;
     let mut stream = sub.into_stream();
+
     while let Some(log) = stream.next().await {
         let token0_symbol_clone = token0_symbol.clone();
         let token1_symbol_clone = token1_symbol.clone();
@@ -124,33 +128,64 @@ async fn main() -> Result<()> {
         tokio::spawn(async move {
             let swap = UniswapV2Pair::Swap::decode_log_data(log.data()).unwrap();
 
-            if swap.amount0In > U256::ZERO && swap.amount1Out > U256::ZERO {
-                // BUY: Sending token0 to get token1
-                let amount_in = format_token_amount(swap.amount0In, token0_decimals);
-                let amount_out = format_token_amount(swap.amount1Out, token1_decimals);
-                println!(
-                    "{} - {}: BUY | {} {} → {} {}",
-                    timestamp.format("%Y-%m-%d %H:%M:%S UTC"),
-                    pair,
-                    amount_in,
-                    token0_symbol_clone,
-                    amount_out,
-                    token1_symbol_clone,
-                );
-            } else if swap.amount1In > U256::ZERO && swap.amount0Out > U256::ZERO {
-                // SELL: Sending token1 to get token0
-                let amount_in = format_token_amount(swap.amount1In, token1_decimals);
-                let amount_out = format_token_amount(swap.amount0Out, token0_decimals);
-                println!(
-                    "{} - {}: SELL | {} {} → {} {}",
-                    timestamp.format("%Y-%m-%d %H:%M:%S UTC"),
-                    pair,
-                    amount_in,
-                    token1_symbol_clone,
-                    amount_out,
-                    token0_symbol_clone,
-                );
-            }
+            // Determine trade direction based on ETH perspective
+            let (trade_type, amount_in, amount_out, in_symbol, out_symbol) =
+                if swap.amount0In > U256::ZERO && swap.amount1Out > U256::ZERO {
+                    // Sending token0 to get token1
+                    if token0_symbol_clone == "WETH" {
+                        // Selling ETH for USDC
+                        (
+                            "SELL",
+                            format_token_amount(swap.amount0In, token0_decimals),
+                            format_token_amount(swap.amount1Out, token1_decimals),
+                            token0_symbol_clone.clone(),
+                            token1_symbol_clone.clone(),
+                        )
+                    } else {
+                        // Buying ETH with USDC
+                        (
+                            "BUY",
+                            format_token_amount(swap.amount0In, token0_decimals),
+                            format_token_amount(swap.amount1Out, token1_decimals),
+                            token0_symbol_clone.clone(),
+                            token1_symbol_clone.clone(),
+                        )
+                    }
+                } else if swap.amount1In > U256::ZERO && swap.amount0Out > U256::ZERO {
+                    // Sending token1 to get token0
+                    if token1_symbol_clone == "WETH" {
+                        // Selling ETH for USDC
+                        (
+                            "SELL",
+                            format_token_amount(swap.amount1In, token1_decimals),
+                            format_token_amount(swap.amount0Out, token0_decimals),
+                            token1_symbol_clone.clone(),
+                            token0_symbol_clone.clone(),
+                        )
+                    } else {
+                        // Buying ETH with USDC
+                        (
+                            "BUY",
+                            format_token_amount(swap.amount1In, token1_decimals),
+                            format_token_amount(swap.amount0Out, token0_decimals),
+                            token1_symbol_clone.clone(),
+                            token0_symbol_clone.clone(),
+                        )
+                    }
+                } else {
+                    return; // Invalid swap
+                };
+
+            println!(
+                "{} - {}: {} | {} {} → {} {}",
+                timestamp.format("%Y-%m-%d %H:%M:%S UTC"),
+                pair,
+                trade_type,
+                amount_in,
+                in_symbol,
+                amount_out,
+                out_symbol,
+            );
         });
     }
 
